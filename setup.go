@@ -28,11 +28,6 @@ func setup(args0 ...string) (handler.Handler4, error) {
 
 	ctx := context.Background()
 
-	client, err := NewClient(ctx, config)
-	if err != nil {
-		return nil, err
-	}
-
 	var routers []*Router
 	for _, r := range config.Routers {
 		ip := net.ParseIP(r)
@@ -48,7 +43,6 @@ func setup(args0 ...string) (handler.Handler4, error) {
 
 	p := PluginState{
 		config:  config,
-		client:  client,
 		routers: routers,
 	}
 
