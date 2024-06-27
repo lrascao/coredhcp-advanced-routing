@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	etcd "go.etcd.io/etcd/client/v3"
+
 	"github.com/coredhcp/coredhcp/logger"
 	"github.com/coredhcp/coredhcp/plugins"
 	"github.com/insomniacslk/dhcp/dhcpv4"
@@ -30,8 +32,10 @@ type Router struct {
 
 // PluginState is the data held by an instance of the range plugin
 type PluginState struct {
+	// Rough lock for the whole plugin, we'll get better performance once we use leasestorage
 	sync.Mutex
 	config  Config
+	client  *etcd.Client
 	routers []*Router
 }
 
@@ -45,6 +49,7 @@ func (p *PluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) 
 	p.Lock()
 	defer p.Unlock()
 
+	// find the least loaded router
 	var live []*Router
 	for _, r := range p.routers {
 		// ignore unhealthy routers
