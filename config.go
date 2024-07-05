@@ -19,6 +19,6 @@ type Config struct {
 }
 
 func (c Config) String() string {
-	return fmt.Sprintf("CA=%s Cert=%s Key=%s Endpoints=%v Routers=%v",
-		c.CA, c.Cert, c.Key, c.Endpoints, c.Routers)
+	return fmt.Sprintf("CA=%s Cert=%s Key=%s Endpoints=%v Routers=%v HealthCheckDestination=%s HealthCheckInterval=%v HealthCheckMaxPacketLoss=%d Interface=%s",
+		c.CA, c.Cert, c.Key, c.Endpoints, c.Routers, c.HealthCheckDestination, c.HealthCheckInterval, c.HealthCheckMaxPacketLoss, c.Interface)
 }
