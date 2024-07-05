@@ -6,6 +6,7 @@ import (
 	"net"
 	"time"
 
+	probing "github.com/prometheus-community/pro-bing"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 )
@@ -27,24 +28,47 @@ func (p *PluginState) watchRouters(ctx context.Context) {
 				}
 			}
 
-			// check it's health
-			p.checkRouter(oldest)
+			// check its health
+			if err := p.checkRouter(oldest); err != nil {
+				log.Errorf("error checking router %v: %v", oldest.ip, err)
+			}
 		}
 	}
 }
 
-func (p *PluginState) checkRouter(r *Router) {
+func (p *PluginState) checkRouter(r *Router) error {
 	p.Lock()
 	defer p.Unlock()
 
-	log.Debugf("checking router %v", r.ip)
+	log.Debugf("checking router %v (healthy?: %v)",
+		r.ip, r.healthy)
 	r.lastCheck = time.Now()
 
 	// change the default route to this router
 	if err := p.changeDefaultRoute(r.ip.String()); err != nil {
-		log.Warnf("error changing default route: %v", err)
-		return
+		log.Warnf("error changing default route to destination: %v", err)
+		return fmt.Errorf("error changing default route: %w", err)
 	}
+
+	// ping the health check destination
+	pinger, err := probing.NewPinger(p.config.HealthCheckDestination)
+	if err != nil {
+		return fmt.Errorf("error creating pinger: %w", err)
+	}
+	pinger.Count = 10
+	if err := pinger.Run(); err != nil {
+		return fmt.Errorf("error running pinger: %w", err)
+	}
+	stats := pinger.Statistics()
+	if stats.PacketLoss > (float64(p.config.HealthCheckMaxPacketLoss) / 100) {
+		log.Warnf("router %v is unhealthy, %v%% packet loss exceeded max (%v%%)",
+			r.ip, stats.PacketLoss, p.config.HealthCheckMaxPacketLoss)
+
+		// mark router as unhealthy
+		r.healthy = false
+	}
+
+	return nil
 }
 
 func (p *PluginState) changeDefaultRoute(gw string) error {
@@ -54,14 +78,15 @@ func (p *PluginState) changeDefaultRoute(gw string) error {
 		return fmt.Errorf("error finding link: %w", err)
 	}
 
+	// get routes
 	routes, err := netlink.RouteList(link, unix.AF_INET)
 	if err != nil {
 		return fmt.Errorf("error listing routes: %w", err)
 	}
 
-	// find the default route
+	// find the default route and change it's gateway
 	for _, route := range routes {
-		if route.Dst != nil && route.Dst.String() == "0.0.0.0/0" {
+		if route.Dst != nil && route.Dst.IP.String() == p.config.HealthCheckDestination {
 			route.Gw = net.ParseIP(gw)
 			if err := netlink.RouteChange(&route); err != nil {
 				return fmt.Errorf("error changing route: %w", err)

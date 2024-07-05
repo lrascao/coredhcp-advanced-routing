@@ -12,8 +12,10 @@ type Config struct {
 	Endpoints []string
 	Routers   []string
 	// health check
-	HealthCheckInterval time.Duration `mapstructure:"health-check-interval"`
-	Interface           string        `mapstructure:"interface"`
+	HealthCheckDestination   string        `mapstructure:"health-check-destination"`
+	HealthCheckInterval      time.Duration `mapstructure:"health-check-interval"`
+	HealthCheckMaxPacketLoss int           `mapstructure:"health-check-max-packet-loss"`
+	Interface                string        `mapstructure:"interface"`
 }
 
 func (c Config) String() string {
