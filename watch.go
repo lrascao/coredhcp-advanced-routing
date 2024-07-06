@@ -71,6 +71,14 @@ func (p *PluginState) checkRouter(ctx context.Context, r *Router) error {
 
 		// mark router as unhealthy
 		r.healthy = false
+	} else if !r.healthy {
+		log.Infof("router %v is healthy again", r.ip)
+
+		p.Lock()
+		defer p.Unlock()
+
+		// mark router as healthy
+		r.healthy = true
 	}
 
 	return nil
