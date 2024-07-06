@@ -37,9 +37,6 @@ func (p *PluginState) watchRouters(ctx context.Context) {
 }
 
 func (p *PluginState) checkRouter(ctx context.Context, r *Router) error {
-	p.Lock()
-	defer p.Unlock()
-
 	log.Debugf("checking router %v (healthy?: %v)",
 		r.ip, r.healthy)
 	r.lastCheck = time.Now()
@@ -68,6 +65,9 @@ func (p *PluginState) checkRouter(ctx context.Context, r *Router) error {
 	if stats.PacketLoss > (float64(p.config.HealthCheckMaxPacketLoss) / 100) {
 		log.Warnf("router %v is unhealthy, %v%% packet loss exceeded max (%v%%)",
 			r.ip, stats.PacketLoss, p.config.HealthCheckMaxPacketLoss)
+
+		p.Lock()
+		defer p.Unlock()
 
 		// mark router as unhealthy
 		r.healthy = false

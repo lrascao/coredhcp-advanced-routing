@@ -33,7 +33,7 @@ type Router struct {
 // PluginState is the data held by an instance of the range plugin
 type PluginState struct {
 	// Rough lock for the whole plugin, we'll get better performance once we use leasestorage
-	sync.Mutex
+	sync.RWMutex
 	config  Config
 	client  *etcd.Client
 	routers []*Router
@@ -46,8 +46,8 @@ var (
 
 // Handler4 handles DHCPv4 packets for the lbr plugin
 func (p *PluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
-	p.Lock()
-	defer p.Unlock()
+	p.RLock()
+	defer p.RUnlock()
 
 	// find the least loaded router
 	var live []*Router
