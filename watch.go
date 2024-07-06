@@ -29,14 +29,14 @@ func (p *PluginState) watchRouters(ctx context.Context) {
 			}
 
 			// check its health
-			if err := p.checkRouter(oldest); err != nil {
+			if err := p.checkRouter(ctx, oldest); err != nil {
 				log.Errorf("error checking router %v: %v", oldest.ip, err)
 			}
 		}
 	}
 }
 
-func (p *PluginState) checkRouter(r *Router) error {
+func (p *PluginState) checkRouter(ctx context.Context, r *Router) error {
 	p.Lock()
 	defer p.Unlock()
 
@@ -50,13 +50,18 @@ func (p *PluginState) checkRouter(r *Router) error {
 		return fmt.Errorf("error changing default route: %w", err)
 	}
 
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(15*time.Second))
+	defer cancel()
+
 	// ping the health check destination
 	pinger, err := probing.NewPinger(p.config.HealthCheckDestination)
 	if err != nil {
 		return fmt.Errorf("error creating pinger: %w", err)
 	}
 	pinger.Count = 10
-	if err := pinger.Run(); err != nil {
+	pinger.Interval = time.Duration(500 * time.Millisecond)
+	pinger.Timeout = time.Duration(10 * time.Second)
+	if err := pinger.RunWithContext(ctx); err != nil {
 		return fmt.Errorf("error running pinger: %w", err)
 	}
 	stats := pinger.Statistics()
