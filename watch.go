@@ -62,7 +62,7 @@ func (p *PluginState) checkRouter(ctx context.Context, r *Router) error {
 		return fmt.Errorf("error running pinger: %w", err)
 	}
 	stats := pinger.Statistics()
-	if stats.PacketLoss > (float64(p.config.HealthCheckMaxPacketLoss) / 100) {
+	if stats.PacketLoss > float64(p.config.HealthCheckMaxPacketLoss) {
 		log.Warnf("router %v is unhealthy, %v%% packet loss exceeded max (%v%%)",
 			r.ip, stats.PacketLoss, p.config.HealthCheckMaxPacketLoss)
 
