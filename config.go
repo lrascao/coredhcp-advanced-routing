@@ -6,10 +6,12 @@ import (
 )
 
 type Config struct {
+	// etcd Config
 	CA        string
 	Cert      string
 	Key       string
 	Endpoints []string
+	Prefix    string
 	Routers   []string
 	// health check
 	HealthCheckDestination   string        `mapstructure:"health-check-destination"`
