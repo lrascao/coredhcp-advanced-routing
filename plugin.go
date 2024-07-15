@@ -105,7 +105,12 @@ func (p *PluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) 
 		return nil, true
 	}
 
-	router = res.Kvs[0].Value
+	router = net.ParseIP(string(res.Kvs[0].Value))
+	if router == nil {
+		log.Errorf("could not parse router IP obtained etcd: %v", res.Kvs[0].Value)
+		return nil, true
+
+	}
 
 	log.Infof("setting router in DHCPv4 response (txid: %v): %v",
 		resp.TransactionID, router)
