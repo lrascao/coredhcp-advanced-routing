@@ -1,4 +1,4 @@
-package lbr
+package advrouting
 
 import (
 	"context"
@@ -39,7 +39,7 @@ type PluginState struct {
 
 // various global variables
 var (
-	log = logger.GetLogger("plugins/lbr")
+	log = logger.GetLogger("plugins/advrouting")
 )
 
 // Handler4 handles DHCPv4 packets for the lbr plugin
