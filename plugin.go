@@ -42,7 +42,7 @@ var (
 	log = logger.GetLogger("plugins/advrouting")
 )
 
-// Handler4 handles DHCPv4 packets for the lbr plugin
+// Handler4 handles DHCPv4 packets for the plugin
 func (p *PluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	p.RLock()
 	defer p.RUnlock()
