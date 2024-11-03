@@ -18,7 +18,7 @@ import (
 
 // Plugin wraps plugin registration information
 var Plugin = plugins.Plugin{
-	Name:   "load-balanced-routers",
+	Name:   "advanced-routing",
 	Setup4: setup,
 }
 

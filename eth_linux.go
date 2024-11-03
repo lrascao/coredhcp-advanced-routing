@@ -15,7 +15,6 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/insomniacslk/dhcp/dhcpv4"
-	"google.golang.org/appengine/log"
 )
 
 // this function sends an unicast to the hardware address defined in resp.ClientHWAddr,
@@ -70,15 +69,11 @@ func sendEthernet(iface net.Interface, resp *dhcpv4.DHCPv4) error {
 		return fmt.Errorf("Send Ethernet: Cannot open socket: %v", err)
 	}
 	defer func() {
-		err = syscall.Close(fd)
-		if err != nil {
-			log.Errorf("Send Ethernet: Cannot close socket: %v", err)
-		}
+		syscall.Close(fd)
 	}()
 
-	err = syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
-	if err != nil {
-		log.Errorf("Send Ethernet: Cannot set option for socket: %v", err)
+	if err := syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1); err != nil {
+		return fmt.Errorf("error setting socket option: %v", err)
 	}
 
 	var hwAddr [8]byte

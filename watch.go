@@ -97,10 +97,12 @@ func (p *PluginState) changeDefaultRoute(gw string) error {
 		return fmt.Errorf("error listing routes: %w", err)
 	}
 
+	ipgw := net.ParseIP(gw)
+
 	// find the default route and change it's gateway
 	for _, route := range routes {
 		if route.Dst != nil && route.Dst.IP.String() == p.config.HealthCheckDestination {
-			route.Gw = net.ParseIP(gw)
+			route.Gw = ipgw
 			if err := netlink.RouteChange(&route); err != nil {
 				return fmt.Errorf("error changing route: %w", err)
 			}
@@ -109,5 +111,18 @@ func (p *PluginState) changeDefaultRoute(gw string) error {
 		}
 	}
 
-	return fmt.Errorf("default route not found")
+	// default route not found, create it
+	dest := net.ParseIP(p.config.HealthCheckDestination)
+	if err := netlink.RouteAdd(&netlink.Route{
+		LinkIndex: link.Attrs().Index,
+		Dst: &net.IPNet{
+			IP:   dest,
+			Mask: net.CIDRMask(32, 32),
+		},
+		Gw: ipgw,
+	}); err != nil {
+		return fmt.Errorf("error adding route: %w", err)
+	}
+
+	return nil
 }

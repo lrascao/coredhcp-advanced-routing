@@ -17,7 +17,8 @@ type Config struct {
 	HealthCheckDestination   string        `mapstructure:"health-check-destination"`
 	HealthCheckInterval      time.Duration `mapstructure:"health-check-interval"`
 	HealthCheckMaxPacketLoss int           `mapstructure:"health-check-max-packet-loss"`
-	Interface                string        `mapstructure:"interface"`
+
+	Interface string `mapstructure:"interface"`
 }
 
 func (c Config) String() string {
