@@ -41,6 +41,7 @@ func setup(args0 ...string) (handler.Handler4, error) {
 		}
 
 		routers = append(routers, &Router{
+			// all routers are initially healthy
 			healthy: true,
 			ip:      ip,
 		})

@@ -37,7 +37,7 @@ func (p *PluginState) watchRouters(ctx context.Context) {
 }
 
 func (p *PluginState) checkRouter(ctx context.Context, r *Router) error {
-	log.Debugf("checking router %v (healthy?: %v)",
+	log.Debugf("checking router %v (was healthy?: %v)",
 		r.ip, r.healthy)
 	r.lastCheck = time.Now()
 

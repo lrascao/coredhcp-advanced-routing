@@ -16,6 +16,10 @@ import (
 	"github.com/insomniacslk/dhcp/dhcpv4"
 )
 
+const (
+	constDefaultLeaseTime = 10 * time.Minute
+)
+
 // Plugin wraps plugin registration information
 var Plugin = plugins.Plugin{
 	Name:   "advanced-routing",
@@ -68,48 +72,33 @@ func (p *PluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) 
 	// pick out a random router out of healthy ones
 	router := random(routers)
 
+	leaseTime := resp.IPAddressLeaseTime(constDefaultLeaseTime)
 	lease, err := etcd.NewLease(p.client).
-		Grant(ctx, int64(30))
+		Grant(ctx, int64(leaseTime.Seconds()))
 	if err != nil {
-		log.Errorf("could not create new lease: %v", err)
+		log.Errorf("could not create new lease (ttl: %v): %v",
+			leaseTime, err)
 		return nil, true
 	}
 
-	nicTransactionKey := fmt.Sprintf("%s/nics/transactions/%s/%s",
-		p.config.Prefix, req.ClientHWAddr.String(), req.TransactionID)
+	routerTransactionKey := fmt.Sprintf("%s/routers/%s/%s",
+		p.config.Prefix, router.String(), resp.YourIPAddr.String())
 
 	kvc := etcd.NewKV(p.client)
 
 	_, err = kvc.Txn(ctx).If(
-		etcdutil.KeyMissing(nicTransactionKey),
+		etcdutil.KeyMissing(routerTransactionKey),
 	).Then(
-		etcd.OpTxn([]etcd.Cmp{
-			etcdutil.KeyMissing(nicTransactionKey),
-		}, []etcd.Op{
-			etcd.OpPut(nicTransactionKey, router.String(), etcd.WithLease(lease.ID)),
-		}, nil),
+		etcd.OpTxn(
+			[]etcd.Cmp{
+				etcdutil.KeyMissing(routerTransactionKey),
+			},
+			[]etcd.Op{
+				etcd.OpPut(routerTransactionKey, req.ClientHWAddr.String(), etcd.WithLease(lease.ID)),
+			}, nil),
 	).Commit()
 	if err != nil {
-		log.Errorf("could not commit nic transaction: %v", err)
-	}
-
-	// either way, a router for this nic transaction now exists
-	// so we can return the router
-	res, err := kvc.Get(ctx, nicTransactionKey)
-	if err != nil {
-		log.Errorf("could not get router for nic transaction: %v", err)
-		return nil, true
-	}
-	if res.Count == 0 {
-		log.Errorf("no router found for nic transaction")
-		return nil, true
-	}
-
-	router = net.ParseIP(string(res.Kvs[0].Value))
-	if router == nil {
-		log.Errorf("could not parse router IP obtained etcd: %v", res.Kvs[0].Value)
-		return nil, true
-
+		log.Errorf("could not commit nic router: %v", err)
 	}
 
 	log.Infof("setting router in DHCPv4 response (txid: %v): %v",
