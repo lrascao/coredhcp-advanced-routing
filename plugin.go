@@ -77,6 +77,14 @@ func (p *PluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) 
 
 	resp.Options.Update(dhcpv4.OptRouter(router))
 
+	// only store the router decision for ACK responses
+	if resp.MessageType() != dhcpv4.MessageTypeAck {
+		return resp, false
+	}
+
+	log.Debugf("storing router %s association with ip %s",
+		router, resp.YourIPAddr)
+
 	leaseTime := resp.IPAddressLeaseTime(constDefaultLeaseTime)
 	lease, err := etcd.NewLease(p.client).
 		Grant(ctx, int64(leaseTime.Seconds()))
