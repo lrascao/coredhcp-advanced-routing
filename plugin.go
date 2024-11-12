@@ -72,6 +72,11 @@ func (p *PluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) 
 	// pick out a random router out of healthy ones
 	router := random(routers)
 
+	log.Infof("setting router in DHCPv4 response (%s txid: %v): %v",
+		resp.MessageType(), resp.TransactionID, router)
+
+	resp.Options.Update(dhcpv4.OptRouter(router))
+
 	leaseTime := resp.IPAddressLeaseTime(constDefaultLeaseTime)
 	lease, err := etcd.NewLease(p.client).
 		Grant(ctx, int64(leaseTime.Seconds()))
@@ -100,11 +105,6 @@ func (p *PluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) 
 	if err != nil {
 		log.Errorf("could not commit nic router: %v", err)
 	}
-
-	log.Infof("setting router in DHCPv4 response (txid: %v): %v",
-		resp.TransactionID, router)
-
-	resp.Options.Update(dhcpv4.OptRouter(router))
 
 	return resp, false
 }
