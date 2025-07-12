@@ -10,17 +10,27 @@ import (
 	"time"
 
 	"github.com/coredhcp/coredhcp/handler"
+	"github.com/go-viper/encoding/javaproperties"
 	"github.com/spf13/viper"
 )
 
 func setup(args0 ...string) (handler.Handler4, error) {
 	args := strings.Join(args0, "\n")
 
-	viper.SetConfigType("properties")
-	viper.ReadConfig(bytes.NewBuffer([]byte(args)))
+	codecRegistry := viper.NewCodecRegistry()
+	codec := &javaproperties.Codec{}
+	codecRegistry.RegisterCodec("properties", codec)
+
+	v := viper.NewWithOptions(
+		viper.WithCodecRegistry(codecRegistry),
+	)
+	v.SetConfigType("properties")
+	if err := v.ReadConfig(bytes.NewBuffer([]byte(args))); err != nil {
+		return nil, fmt.Errorf("unable to read config: %w", err)
+	}
 
 	var config Config
-	if err := viper.Unmarshal(&config); err != nil {
+	if err := v.Unmarshal(&config); err != nil {
 		return nil, fmt.Errorf("unable to unmarshal config: %w", err)
 	}
 
