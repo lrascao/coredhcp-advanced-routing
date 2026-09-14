@@ -71,8 +71,12 @@ func (p *PluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) 
 
 	routers, err := p.healthyRouters()
 	if err != nil {
-		log.Errorf("could not get healthy routers: %v", err)
-		return nil, true
+		// There is nothing to advertise, but the rest of the response is
+		// still good: leave whatever the `router` plugin set earlier in the
+		// chain and let the reply go out. Returning nil here would have the
+		// server drop the request entirely.
+		log.Errorf("could not get healthy routers, leaving the default router in place: %v", err)
+		return resp, false
 	}
 
 	kvc := etcd.NewKV(p.client)
@@ -264,9 +268,34 @@ func (p *PluginState) ipKey(ip net.IP) string {
 	return fmt.Sprintf("%s/%s/ips/%s", p.config.Prefix, routersPrefix, ip.String())
 }
 
+// healthyRouters returns the routers currently eligible to be handed to a
+// client.
+//
+// A unanimous failure is evidence about the probe, not about the routers. All
+// of them are checked against the same health-check-destination, reached over
+// the same uplink, so anything wrong with that destination fails every router
+// in the same sweep while every one of them is still forwarding perfectly
+// well. When that happens this returns the full configured set rather than
+// nothing, and says so at ERROR.
+//
+// It used to return an error instead, which made Handler4 drop the request:
+// one bad probe destination stopped DHCP for the entire network, and clients
+// lost addressing on top of whatever the original fault was. A client pointed
+// at a gateway that might be down can still recover -- it has an address, and
+// the next sweep to succeed will move it. A client with no lease at all cannot.
+//
+// Only a unanimous failure is treated this way. Partial pruning (3 healthy ->
+// 2) is real information, since the surviving routers prove the probe itself
+// works, and is left alone.
 func (p *PluginState) healthyRouters() ([]net.IP, error) {
 	p.RLock()
 	defer p.RUnlock()
+
+	// nothing configured is an operator error, not a health verdict, and
+	// there is no sensible set to fall back to
+	if len(p.routers) == 0 {
+		return nil, fmt.Errorf("no routers configured")
+	}
 
 	// return all live routers
 	var routers []net.IP
@@ -279,7 +308,12 @@ func (p *PluginState) healthyRouters() ([]net.IP, error) {
 	}
 
 	if len(routers) == 0 {
-		return nil, fmt.Errorf("no healthy routers available")
+		for _, r := range p.routers {
+			routers = append(routers, r.ip)
+		}
+
+		log.Errorf("no router passed its health check against %s: treating a unanimous failure as a fault in the probe and offering all %d configured routers",
+			p.config.HealthCheckDestination, len(routers))
 	}
 
 	return routers, nil
